@@ -15,6 +15,7 @@
         .card-hover:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
         .hidden { display: none; }
         .flex { display: flex; }
+        .btn-loading { opacity: 0.7; pointer-events: none; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -50,7 +51,9 @@
                             <label class="block text-sm font-medium text-gray-700 mb-2">Senha</label>
                             <input type="password" id="login-password" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500" placeholder="Sua senha">
                         </div>
-                        <button onclick="login()" class="w-full gradient-bg text-white py-4 px-4 rounded-xl hover:opacity-90 transition-all font-semibold">Entrar</button>
+                        <button onclick="login()" id="login-btn" class="w-full gradient-bg text-white py-4 px-4 rounded-xl hover:opacity-90 transition-all font-semibold">
+                            Entrar
+                        </button>
                     </div>
                     <p class="text-center mt-4 text-gray-600">Não tem conta? <button onclick="showRegister()" class="text-red-600 font-semibold">Criar conta</button></p>
                 </div>
@@ -73,20 +76,33 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Número Vodacom</label>
-                            <input type="tel" id="register-phone" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500" placeholder="84xxxxxxx ou 85xxxxxxx">
+                            <div class="flex">
+                                <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500">+258</span>
+                                <input type="tel" id="register-phone" class="flex-1 rounded-r-md px-4 py-3 border border-gray-300 focus:ring-2 focus:ring-red-500" placeholder="84xxxxxxx ou 85xxxxxxx">
+                            </div>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Província</label>
                             <select id="register-province" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500">
                                 <option value="">Selecione sua província</option>
-                                <option>Maputo Cidade</option><option>Maputo Província</option><option>Gaza</option>
-                                <option>Inhambane</option><option>Sofala</option><option>Manica</option>
-                                <option>Tete</option><option>Zambézia</option><option>Nampula</option>
-                                <option>Cabo Delgado</option><option>Niassa</option>
+                                <option>Maputo Cidade</option>
+                                <option>Maputo Província</option>
+                                <option>Gaza</option>
+                                <option>Inhambane</option>
+                                <option>Sofala</option>
+                                <option>Manica</option>
+                                <option>Tete</option>
+                                <option>Zambézia</option>
+                                <option>Nampula</option>
+                                <option>Cabo Delgado</option>
+                                <option>Niassa</option>
                             </select>
                         </div>
-                        <button onclick="register()" class="w-full gradient-bg text-white py-4 px-4 rounded-xl hover:opacity-90 transition-all font-semibold">Criar Conta</button>
+                        <button onclick="register()" id="register-btn" class="w-full gradient-bg text-white py-4 px-4 rounded-xl hover:opacity-90 transition-all font-semibold">
+                            Criar Conta
+                        </button>
                     </div>
+                    <p class="text-center mt-4 text-gray-600">Já tem conta? <button onclick="showLogin()" class="text-red-600 font-semibold">Fazer login</button></p>
                 </div>
             </div>
         </div>
@@ -178,7 +194,7 @@
     </div>
 
     <script>
-        // Firebase Configuration - SUBSTITUA COM SEUS DADOS!
+        // Firebase Configuration - JÁ COM SEUS DADOS!
         const firebaseConfig = {
             apiKey: "AIzaSyCHTdOrbqFgqYP35LOP5XkGs-69d4lrAn0",
             authDomain: "geaf-8a5bc.firebaseapp.com",
@@ -188,11 +204,13 @@
             appId: "1:413357193401:web:f7be23e2c68495b95c0368"
         };
 
+        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
 
         let currentUser = null;
+        const YOUR_WHATSAPP_NUMBER = "25884926798"; // Seu número sem o +
 
         function initApp() {
             lucide.createIcons();
@@ -200,7 +218,6 @@
                 if (user) {
                     currentUser = user;
                     loadUserData();
-                    showMainApp();
                 } else {
                     showAuthScreen();
                 }
@@ -235,6 +252,21 @@
             document.getElementById('loading').classList.add('hidden');
         }
 
+        function setButtonLoading(buttonId, isLoading) {
+            const button = document.getElementById(buttonId);
+            if (isLoading) {
+                button.classList.add('btn-loading');
+                button.innerHTML = '<div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>';
+            } else {
+                button.classList.remove('btn-loading');
+                if (buttonId === 'login-btn') {
+                    button.textContent = 'Entrar';
+                } else {
+                    button.textContent = 'Criar Conta';
+                }
+            }
+        }
+
         async function login() {
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
@@ -244,9 +276,12 @@
                 return;
             }
 
+            setButtonLoading('login-btn', true);
+
             try {
                 await auth.signInWithEmailAndPassword(email, password);
             } catch (error) {
+                setButtonLoading('login-btn', false);
                 alert('Erro ao entrar: ' + error.message);
             }
         }
@@ -268,6 +303,8 @@
                 return;
             }
 
+            setButtonLoading('register-btn', true);
+
             try {
                 const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                 await db.collection('users').doc(userCredential.user.uid).set({
@@ -279,14 +316,24 @@
                     role: 'user'
                 });
             } catch (error) {
+                setButtonLoading('register-btn', false);
                 alert('Erro ao criar conta: ' + error.message);
             }
         }
 
         async function loadUserData() {
-            const userDoc = await db.collection('users').doc(currentUser.uid).get();
-            if (userDoc.exists) {
-                currentUser.data = userDoc.data();
+            try {
+                const userDoc = await db.collection('users').doc(currentUser.uid).get();
+                if (userDoc.exists) {
+                    currentUser.data = userDoc.data();
+                    showMainApp();
+                } else {
+                    await auth.signOut();
+                    alert('Dados do usuário não encontrados. Por favor, faça login novamente.');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dados do usuário:', error);
+                await auth.signOut();
             }
         }
 
@@ -327,7 +374,7 @@
                                     <span class="text-2xl font-bold text-gray-900">${pkg.price}</span>
                                     <span class="text-gray-600 ml-1">MT</span>
                                 </div>
-                                <button onclick="buyPackage('${pkg.name}', ${pkg.price})" 
+                                <button onclick="buyPackage('${pkg.name}', ${pkg.price}, '${pkg.data}', '${pkg.period}')" 
                                     class="w-full gradient-bg text-white py-3 px-4 rounded-xl hover:opacity-90 transition-all font-semibold">
                                     Comprar Agora
                                 </button>
@@ -340,19 +387,41 @@
                 });
         }
 
-        function buyPackage(packageName, packagePrice) {
-            if (!currentUser || !currentUser.data) return;
+        function buyPackage(packageName, packagePrice, packageData, packagePeriod) {
+            if (!currentUser || !currentUser.data) {
+                alert('Por favor, faça login primeiro');
+                return;
+            }
             
-            const message = `🛒 COMPRA ENYO BYTE%0A%0A📦 Pacote: ${packageName}%0A💰 Preço: ${packagePrice} MT%0A📱 Número: ${currentUser.data.phone}%0A👤 Nome: ${currentUser.data.name}%0A📍 Província: ${currentUser.data.province}%0A%0A✅ Confirmar compra`;
-            const whatsappUrl = `https://wa.me/25884926798?text=${message}`;
+            // Formatar a mensagem para o WhatsApp
+            const message = `🛒 *COMPRA ENYO BYTE*%0A%0A` +
+                           `📦 *Pacote:* ${packageName}%0A` +
+                           `📊 *Dados:* ${packageData}%0A` +
+                           `⏰ *Validade:* ${packagePeriod}%0A` +
+                           `💰 *Preço:* ${packagePrice} MT%0A%0A` +
+                           `👤 *Nome:* ${currentUser.data.name}%0A` +
+                           `📱 *Número:* ${currentUser.data.phone}%0A` +
+                           `📍 *Província:* ${currentUser.data.province}%0A%0A` +
+                           `✅ *Confirmar compra*`;
+            
+            // Abrir WhatsApp
+            const whatsappUrl = `https://wa.me/${YOUR_WHATSAPP_NUMBER}?text=${message}`;
             window.open(whatsappUrl, '_blank');
         }
 
         function openSupport() {
-            if (!currentUser || !currentUser.data) return;
+            if (!currentUser || !currentUser.data) {
+                alert('Por favor, faça login primeiro');
+                return;
+            }
             
-            const message = `🆘 Suporte Técnico%0A%0A👤 Nome: ${currentUser.data.name}%0A📱 Número: ${currentUser.data.phone}%0A📍 Província: ${currentUser.data.province}%0A%0ADescreva seu problema:`;
-            const whatsappUrl = `https://wa.me/+25884926798?text=${message}`;
+            const message = `🆘 *SUPORTE TÉCNICO ENYO BYTE*%0A%0A` +
+                           `👤 *Nome:* ${currentUser.data.name}%0A` +
+                           `📱 *Número:* ${currentUser.data.phone}%0A` +
+                           `📍 *Província:* ${currentUser.data.province}%0A%0A` +
+                           `❓ *Descreva seu problema:*`;
+            
+            const whatsappUrl = `https://wa.me/${YOUR_WHATSAPP_NUMBER}?text=${message}`;
             window.open(whatsappUrl, '_blank');
         }
 
@@ -364,6 +433,7 @@
             }
         }
 
+        // Initialize the app
         window.addEventListener('load', initApp);
     </script>
 </body>
