@@ -1,1 +1,370 @@
-# EnyoNET
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ENYO BYTE - Usuário</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .gradient-bg { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); }
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+        .hidden { display: none; }
+        .flex { display: flex; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div id="app">
+        <!-- Loading -->
+        <div id="loading" class="fixed inset-0 bg-white flex items-center justify-center z-50">
+            <div class="text-center">
+                <div class="w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p class="text-gray-600">Carregando...</p>
+            </div>
+        </div>
+
+        <!-- Auth Screen -->
+        <div id="auth-screen" class="min-h-screen hidden">
+            <div class="container mx-auto px-4 py-8">
+                <div class="text-center mb-8">
+                    <div class="w-20 h-20 gradient-bg rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                        <span class="text-white font-bold text-2xl">EB</span>
+                    </div>
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">ENYO BYTE</h1>
+                    <p class="text-gray-600">Net Price Lite</p>
+                </div>
+
+                <!-- Login Form -->
+                <div class="bg-white rounded-2xl shadow-xl p-6 mb-6">
+                    <h2 class="text-xl font-bold text-gray-900 mb-6 text-center">Entrar</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                            <input type="email" id="login-email" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500" placeholder="seu@email.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Senha</label>
+                            <input type="password" id="login-password" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500" placeholder="Sua senha">
+                        </div>
+                        <button onclick="login()" class="w-full gradient-bg text-white py-4 px-4 rounded-xl hover:opacity-90 transition-all font-semibold">Entrar</button>
+                    </div>
+                    <p class="text-center mt-4 text-gray-600">Não tem conta? <button onclick="showRegister()" class="text-red-600 font-semibold">Criar conta</button></p>
+                </div>
+
+                <!-- Register Form -->
+                <div id="register-form" class="bg-white rounded-2xl shadow-xl p-6 hidden">
+                    <h2 class="text-xl font-bold text-gray-900 mb-6 text-center">Criar Conta</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Nome Completo</label>
+                            <input type="text" id="register-name" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500" placeholder="Seu nome completo">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                            <input type="email" id="register-email" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500" placeholder="seu@email.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Senha</label>
+                            <input type="password" id="register-password" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500" placeholder="Mínimo 6 caracteres">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Número Vodacom</label>
+                            <input type="tel" id="register-phone" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500" placeholder="84xxxxxxx ou 85xxxxxxx">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Província</label>
+                            <select id="register-province" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500">
+                                <option value="">Selecione sua província</option>
+                                <option>Maputo Cidade</option><option>Maputo Província</option><option>Gaza</option>
+                                <option>Inhambane</option><option>Sofala</option><option>Manica</option>
+                                <option>Tete</option><option>Zambézia</option><option>Nampula</option>
+                                <option>Cabo Delgado</option><option>Niassa</option>
+                            </select>
+                        </div>
+                        <button onclick="register()" class="w-full gradient-bg text-white py-4 px-4 rounded-xl hover:opacity-90 transition-all font-semibold">Criar Conta</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main App -->
+        <div id="main-app" class="min-h-screen hidden">
+            <!-- Header -->
+            <div class="bg-white shadow-lg border-b border-gray-200 sticky top-0 z-40">
+                <div class="px-4 py-3 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center">
+                            <span class="text-white font-bold">EB</span>
+                        </div>
+                        <div>
+                            <h1 class="font-bold text-gray-900">ENYO BYTE</h1>
+                            <p class="text-xs text-gray-600">Net Price Lite</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <button onclick="logout()" class="p-2 text-gray-600 hover:text-gray-900">
+                            <i data-lucide="log-out" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div class="p-4 pb-20">
+                <!-- Welcome Card -->
+                <div class="bg-gradient-to-r from-red-50 to-red-100 rounded-2xl p-4 shadow-lg mb-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="font-bold text-xl text-gray-900 mb-1" id="welcome-name">Olá, Utilizador!</h2>
+                            <p class="text-gray-600 text-sm flex items-center">
+                                <i data-lucide="map-pin" class="w-4 h-4 mr-1"></i>
+                                <span id="user-province">Província</span> • <span id="user-phone">Número</span>
+                            </p>
+                        </div>
+                        <div class="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center">
+                            <i data-lucide="user" class="w-6 h-6 text-white"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Packages -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">Pacotes Disponíveis</h3>
+                    <div class="grid grid-cols-1 gap-4" id="packages-container">
+                        <div class="text-center py-8 text-gray-500" id="no-packages">
+                            <i data-lucide="package" class="w-12 h-12 mx-auto mb-4"></i>
+                            <p>Nenhum pacote disponível no momento</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Methods -->
+                <div class="bg-white rounded-2xl p-4 shadow-lg border border-gray-200">
+                    <h4 class="font-bold text-gray-900 mb-3 flex items-center">
+                        <i data-lucide="credit-card" class="w-5 h-5 mr-2"></i>
+                        Formas de Pagamento
+                    </h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-gradient-to-r from-green-400 to-green-600 rounded-xl p-3 text-center shadow-lg">
+                            <div class="font-bold text-white text-sm">M-Pesa</div>
+                            <div class="text-green-100 text-xs">Pagamento móvel</div>
+                        </div>
+                        <div class="bg-gradient-to-r from-blue-400 to-blue-600 rounded-xl p-3 text-center shadow-lg">
+                            <div class="font-bold text-white text-sm">e-Mola</div>
+                            <div class="text-blue-100 text-xs">Carteira digital</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Navigation -->
+            <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3">
+                <div class="flex justify-around">
+                    <button class="flex flex-col items-center text-red-600">
+                        <i data-lucide="package" class="w-6 h-6 mb-1"></i>
+                        <span class="text-xs font-semibold">Pacotes</span>
+                    </button>
+                    <button onclick="openSupport()" class="flex flex-col items-center text-gray-600">
+                        <i data-lucide="message-circle" class="w-6 h-6 mb-1"></i>
+                        <span class="text-xs font-semibold">Suporte</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration - SUBSTITUA COM SEUS DADOS!
+        const firebaseConfig = {
+            apiKey: "AIzaSyCHTdOrbqFgqYP35LOP5XkGs-69d4lrAn0",
+            authDomain: "geaf-8a5bc.firebaseapp.com",
+            projectId: "geaf-8a5bc",
+            storageBucket: "geaf-8a5bc.firebasestorage.app",
+            messagingSenderId: "413357193401",
+            appId: "1:413357193401:web:f7be23e2c68495b95c0368"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let currentUser = null;
+
+        function initApp() {
+            lucide.createIcons();
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    currentUser = user;
+                    loadUserData();
+                    showMainApp();
+                } else {
+                    showAuthScreen();
+                }
+                hideLoading();
+            });
+        }
+
+        function showAuthScreen() {
+            document.getElementById('auth-screen').classList.remove('hidden');
+            document.getElementById('main-app').classList.add('hidden');
+            showLogin();
+        }
+
+        function showLogin() {
+            document.getElementById('register-form').classList.add('hidden');
+            document.querySelector('#auth-screen > div > div:last-child').classList.remove('hidden');
+        }
+
+        function showRegister() {
+            document.querySelector('#auth-screen > div > div:last-child').classList.add('hidden');
+            document.getElementById('register-form').classList.remove('hidden');
+        }
+
+        function showMainApp() {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            updateUserInfo();
+            loadPackages();
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+        async function login() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            if (!email || !password) {
+                alert('Por favor, preencha todos os campos');
+                return;
+            }
+
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+            } catch (error) {
+                alert('Erro ao entrar: ' + error.message);
+            }
+        }
+
+        async function register() {
+            const name = document.getElementById('register-name').value;
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const phone = document.getElementById('register-phone').value;
+            const province = document.getElementById('register-province').value;
+            
+            if (!name || !email || !password || !phone || !province) {
+                alert('Por favor, preencha todos os campos');
+                return;
+            }
+
+            if (!phone.startsWith('84') && !phone.startsWith('85')) {
+                alert('Apenas números Vodacom (84/85) são aceitos');
+                return;
+            }
+
+            try {
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                await db.collection('users').doc(userCredential.user.uid).set({
+                    name: name,
+                    email: email,
+                    phone: '+258' + phone,
+                    province: province,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    role: 'user'
+                });
+            } catch (error) {
+                alert('Erro ao criar conta: ' + error.message);
+            }
+        }
+
+        async function loadUserData() {
+            const userDoc = await db.collection('users').doc(currentUser.uid).get();
+            if (userDoc.exists) {
+                currentUser.data = userDoc.data();
+            }
+        }
+
+        function updateUserInfo() {
+            if (currentUser && currentUser.data) {
+                document.getElementById('welcome-name').textContent = `Olá, ${currentUser.data.name}!`;
+                document.getElementById('user-province').textContent = currentUser.data.province;
+                document.getElementById('user-phone').textContent = currentUser.data.phone;
+            }
+        }
+
+        function loadPackages() {
+            db.collection('packages').where('active', '==', true)
+                .onSnapshot((snapshot) => {
+                    const packagesContainer = document.getElementById('packages-container');
+                    const noPackages = document.getElementById('no-packages');
+                    
+                    if (snapshot.empty) {
+                        noPackages.classList.remove('hidden');
+                        packagesContainer.innerHTML = '';
+                        packagesContainer.appendChild(noPackages);
+                        return;
+                    }
+
+                    noPackages.classList.add('hidden');
+                    packagesContainer.innerHTML = '';
+                    
+                    snapshot.forEach((doc) => {
+                        const pkg = doc.data();
+                        const packageHTML = `
+                            <div class="bg-white rounded-2xl p-4 shadow-lg border border-gray-200 card-hover">
+                                <div class="text-center mb-4">
+                                    <div class="text-3xl mb-2">${pkg.icon || '📦'}</div>
+                                    <h3 class="font-bold text-gray-900">${pkg.name}</h3>
+                                    <p class="text-gray-600 text-sm">${pkg.data} • ${pkg.period}</p>
+                                </div>
+                                <div class="text-center mb-4">
+                                    <span class="text-2xl font-bold text-gray-900">${pkg.price}</span>
+                                    <span class="text-gray-600 ml-1">MT</span>
+                                </div>
+                                <button onclick="buyPackage('${pkg.name}', ${pkg.price})" 
+                                    class="w-full gradient-bg text-white py-3 px-4 rounded-xl hover:opacity-90 transition-all font-semibold">
+                                    Comprar Agora
+                                </button>
+                            </div>
+                        `;
+                        packagesContainer.innerHTML += packageHTML;
+                    });
+                }, (error) => {
+                    console.error('Erro ao carregar pacotes:', error);
+                });
+        }
+
+        function buyPackage(packageName, packagePrice) {
+            if (!currentUser || !currentUser.data) return;
+            
+            const message = `🛒 COMPRA ENYO BYTE%0A%0A📦 Pacote: ${packageName}%0A💰 Preço: ${packagePrice} MT%0A📱 Número: ${currentUser.data.phone}%0A👤 Nome: ${currentUser.data.name}%0A📍 Província: ${currentUser.data.province}%0A%0A✅ Confirmar compra`;
+            const whatsappUrl = `https://wa.me/25884926798?text=${message}`;
+            window.open(whatsappUrl, '_blank');
+        }
+
+        function openSupport() {
+            if (!currentUser || !currentUser.data) return;
+            
+            const message = `🆘 Suporte Técnico%0A%0A👤 Nome: ${currentUser.data.name}%0A📱 Número: ${currentUser.data.phone}%0A📍 Província: ${currentUser.data.province}%0A%0ADescreva seu problema:`;
+            const whatsappUrl = `https://wa.me/+25884926798?text=${message}`;
+            window.open(whatsappUrl, '_blank');
+        }
+
+        async function logout() {
+            try {
+                await auth.signOut();
+            } catch (error) {
+                alert('Erro ao sair: ' + error.message);
+            }
+        }
+
+        window.addEventListener('load', initApp);
+    </script>
+</body>
+</html>
