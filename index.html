@@ -16,6 +16,8 @@
         .hidden { display: none; }
         .flex { display: flex; }
         .btn-loading { opacity: 0.7; pointer-events: none; }
+        .daily-card { border-left: 4px solid #3B82F6; }
+        .monthly-card { border-left: 4px solid #10B981; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -150,10 +152,28 @@
                 <!-- Packages -->
                 <div class="mb-6">
                     <h3 class="text-lg font-bold text-gray-900 mb-4">Pacotes Disponíveis</h3>
-                    <div class="grid grid-cols-1 gap-4" id="packages-container">
-                        <div class="text-center py-8 text-gray-500" id="no-packages">
-                            <i data-lucide="package" class="w-12 h-12 mx-auto mb-4"></i>
-                            <p>Nenhum pacote disponível no momento</p>
+                    
+                    <!-- Diário Section -->
+                    <h4 class="font-semibold text-blue-600 mb-3 flex items-center">
+                        <i data-lucide="sun" class="w-4 h-4 mr-2"></i>
+                        Pacotes Diários
+                    </h4>
+                    <div class="grid grid-cols-1 gap-4 mb-6" id="daily-packages-container">
+                        <div class="text-center py-4 text-gray-500">
+                            <i data-lucide="package" class="w-8 h-8 mx-auto mb-2"></i>
+                            <p>Nenhum pacote diário disponível</p>
+                        </div>
+                    </div>
+
+                    <!-- Mensal Section -->
+                    <h4 class="font-semibold text-green-600 mb-3 flex items-center">
+                        <i data-lucide="calendar" class="w-4 h-4 mr-2"></i>
+                        Pacotes Mensais
+                    </h4>
+                    <div class="grid grid-cols-1 gap-4" id="monthly-packages-container">
+                        <div class="text-center py-4 text-gray-500">
+                            <i data-lucide="package" class="w-8 h-8 mx-auto mb-2"></i>
+                            <p>Nenhum pacote mensal disponível</p>
                         </div>
                     </div>
                 </div>
@@ -194,7 +214,7 @@
     </div>
 
     <script>
-        // Firebase Configuration - JÁ COM SEUS DADOS!
+        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyCHTdOrbqFgqYP35LOP5XkGs-69d4lrAn0",
             authDomain: "geaf-8a5bc.firebaseapp.com",
@@ -210,7 +230,7 @@
         const db = firebase.firestore();
 
         let currentUser = null;
-        const YOUR_WHATSAPP_NUMBER = "258849267984"; // Seu número sem o +
+        const YOUR_WHATSAPP_NUMBER = "258849267984";
 
         function initApp() {
             lucide.createIcons();
@@ -313,7 +333,8 @@
                     phone: '+258' + phone,
                     province: province,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    role: 'user'
+                    role: 'user',
+                    blocked: false
                 });
             } catch (error) {
                 setButtonLoading('register-btn', false);
@@ -325,7 +346,16 @@
             try {
                 const userDoc = await db.collection('users').doc(currentUser.uid).get();
                 if (userDoc.exists) {
-                    currentUser.data = userDoc.data();
+                    const userData = userDoc.data();
+                    
+                    // Check if user is blocked
+                    if (userData.blocked) {
+                        await auth.signOut();
+                        alert('Sua conta foi bloqueada. Entre em contato com o suporte.');
+                        return;
+                    }
+                    
+                    currentUser.data = userData;
                     showMainApp();
                 } else {
                     await auth.signOut();
@@ -348,65 +378,94 @@
         function loadPackages() {
             db.collection('packages').where('active', '==', true)
                 .onSnapshot((snapshot) => {
-                    const packagesContainer = document.getElementById('packages-container');
-                    const noPackages = document.getElementById('no-packages');
+                    const dailyContainer = document.getElementById('daily-packages-container');
+                    const monthlyContainer = document.getElementById('monthly-packages-container');
+                    
+                    // Clear containers
+                    dailyContainer.innerHTML = '';
+                    monthlyContainer.innerHTML = '';
                     
                     if (snapshot.empty) {
-                        noPackages.classList.remove('hidden');
-                        packagesContainer.innerHTML = '';
-                        packagesContainer.appendChild(noPackages);
+                        dailyContainer.innerHTML = '<div class="text-center py-4 text-gray-500"><i data-lucide="package" class="w-8 h-8 mx-auto mb-2"></i><p>Nenhum pacote disponível</p></div>';
+                        monthlyContainer.innerHTML = '<div class="text-center py-4 text-gray-500"><i data-lucide="package" class="w-8 h-8 mx-auto mb-2"></i><p>Nenhum pacote disponível</p></div>';
                         return;
                     }
-
-                    noPackages.classList.add('hidden');
-                    packagesContainer.innerHTML = '';
+                    
+                    let hasDaily = false;
+                    let hasMonthly = false;
                     
                     snapshot.forEach((doc) => {
                         const pkg = doc.data();
                         const packageHTML = `
-                            <div class="bg-white rounded-2xl p-4 shadow-lg border border-gray-200 card-hover">
+                            <div class="bg-white rounded-2xl p-4 shadow-lg border border-gray-200 card-hover ${pkg.category === 'Diário' ? 'daily-card' : 'monthly-card'}">
                                 <div class="text-center mb-4">
                                     <div class="text-3xl mb-2">${pkg.icon || '📦'}</div>
-                                    <h3 class="font-bold text-gray-900">${pkg.name}</h3>
-                                    <p class="text-gray-600 text-sm">${pkg.data} • ${pkg.period}</p>
+                                    <h3 class="font-bold text-gray-900">${pkg.category}: ${pkg.data}</h3>
+                                    <p class="text-gray-600 text-sm">${pkg.period}</p>
                                 </div>
                                 <div class="text-center mb-4">
                                     <span class="text-2xl font-bold text-gray-900">${pkg.price}</span>
                                     <span class="text-gray-600 ml-1">MT</span>
                                 </div>
-                                <button onclick="buyPackage('${pkg.name}', ${pkg.price}, '${pkg.data}', '${pkg.period}')" 
+                                <button onclick="buyPackage('${doc.id}', '${pkg.category}', ${pkg.price}, '${pkg.data}', '${pkg.period}')" 
                                     class="w-full gradient-bg text-white py-3 px-4 rounded-xl hover:opacity-90 transition-all font-semibold">
                                     Comprar Agora
                                 </button>
                             </div>
                         `;
-                        packagesContainer.innerHTML += packageHTML;
+                        
+                        if (pkg.category === 'Diário') {
+                            dailyContainer.innerHTML += packageHTML;
+                            hasDaily = true;
+                        } else if (pkg.category === 'Mensal') {
+                            monthlyContainer.innerHTML += packageHTML;
+                            hasMonthly = true;
+                        }
                     });
+                    
+                    if (!hasDaily) {
+                        dailyContainer.innerHTML = '<div class="text-center py-4 text-gray-500"><i data-lucide="package" class="w-8 h-8 mx-auto mb-2"></i><p>Nenhum pacote diário disponível</p></div>';
+                    }
+                    
+                    if (!hasMonthly) {
+                        monthlyContainer.innerHTML = '<div class="text-center py-4 text-gray-500"><i data-lucide="package" class="w-8 h-8 mx-auto mb-2"></i><p>Nenhum pacote mensal disponível</p></div>';
+                    }
                 }, (error) => {
                     console.error('Erro ao carregar pacotes:', error);
                 });
         }
 
-        function buyPackage(packageName, packagePrice, packageData, packagePeriod) {
+        async function buyPackage(packageId, packageCategory, packagePrice, packageData, packagePeriod) {
             if (!currentUser || !currentUser.data) {
                 alert('Por favor, faça login primeiro');
                 return;
             }
             
-            // Formatar a mensagem para o WhatsApp
-            const message = `🛒 *COMPRA ENYO BYTE*%0A%0A` +
-                           `📦 *Pacote:* ${packageName}%0A` +
-                           `📊 *Dados:* ${packageData}%0A` +
-                           `⏰ *Validade:* ${packagePeriod}%0A` +
-                           `💰 *Preço:* ${packagePrice} MT%0A%0A` +
-                           `👤 *Nome:* ${currentUser.data.name}%0A` +
-                           `📱 *Número:* ${currentUser.data.phone}%0A` +
-                           `📍 *Província:* ${currentUser.data.province}%0A%0A` +
-                           `✅ *Confirmar compra*`;
-            
-            // Abrir WhatsApp
-            const whatsappUrl = `https://wa.me/${YOUR_WHATSAPP_NUMBER}?text=${message}`;
-            window.open(whatsappUrl, '_blank');
+            try {
+                // Update click count
+                await db.collection('packages').doc(packageId).update({
+                    clicks: firebase.firestore.FieldValue.increment(1),
+                    lastClicked: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                // Formatar a mensagem para o WhatsApp
+                const message = `🛒 *COMPRA NO ENYO BYTE*%0A%0A` +
+                               `📦 *Pacote:* ${packageCategory} - ${packageData}%0A` +
+                               `⏰ *Validade:* ${packagePeriod}%0A` +
+                               `💰 *Preço:* ${packagePrice} MT%0A%0A` +
+                               `👤 *Nome:* ${currentUser.data.name}%0A` +
+                               `📱 *Número:* ${currentUser.data.phone}%0A` +
+                               `📍 *Província:* ${currentUser.data.province}%0A%0A` +
+                               `✅ *Confirmar compra*`;
+                
+                // Abrir WhatsApp
+                const whatsappUrl = `https://wa.me/${YOUR_WHATSAPP_NUMBER}?text=${message}`;
+                window.open(whatsappUrl, '_blank');
+                
+            } catch (error) {
+                console.error('Erro ao registrar clique:', error);
+                alert('Erro ao processar sua solicitação. Tente novamente.');
+            }
         }
 
         function openSupport() {
@@ -415,7 +474,7 @@
                 return;
             }
             
-            const message = `🆘 *SUPORTE TÉCNICO ENYO BYTE*%0A%0A` +
+            const message = `🆘 *SUPORTE TÉCNICO AO ENYO BYTE*%0A%0A` +
                            `👤 *Nome:* ${currentUser.data.name}%0A` +
                            `📱 *Número:* ${currentUser.data.phone}%0A` +
                            `📍 *Província:* ${currentUser.data.province}%0A%0A` +
